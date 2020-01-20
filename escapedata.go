@@ -4,6 +4,13 @@ import (
 	"image/color"
 )
 
+// EscapeData is used by Encode to store a rendered image which can be
+// written directly to your terminal.
+//
+// The result of the last Encode is accessible using Value().
+//
+// EscapeData can be reused for multiple Encode() calls, but please note
+// that the byte slice returned by Value() will change.
 type EscapeData struct {
 	bits []byte
 	n    int
@@ -13,17 +20,27 @@ type EscapeData struct {
 	lastFg     color.RGBA
 }
 
-// SetBuffer gives EscapeData an existing scratch area to work with.
-func (t *EscapeData) SetBuffer(buf []byte) {
-	t.bits = buf
-}
-
+// Value returns the last image built into the EscapeData by Encode(), which can be
+// written directly to your terminal.
+//
+// If the EscapeData is reused, the []byte slice returned will change; if this is
+// undesirable, you will need to copy the bytes yourself.
 func (t *EscapeData) Value() []byte {
 	return t.bits[:t.n]
 }
 
+func (t *EscapeData) Preallocate(flags Flag, w, h int) {
+	t.SetBuffer(make([]byte, t.MaxSize(flags, w, h)))
+}
+
+// MaxSize returns the largest possible buffer size
 func (t *EscapeData) MaxSize(flags Flag, w, h int) int {
 	return (h / 8) * t.maxRowSize(flags, w)
+}
+
+// SetBuffer gives EscapeData an existing scratch area to work with.
+func (t *EscapeData) SetBuffer(buf []byte) {
+	t.bits = buf
 }
 
 func (t *EscapeData) nextRow() {
