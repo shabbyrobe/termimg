@@ -66,7 +66,7 @@ func BenchmarkDecode(b *testing.B) {
 
 	var data EscapeData
 	data.SetBuffer(make([]byte, 10*1024*1024)) //  Should be big enough to avoid realloc
-	if err := Encode(&data, img, FlagNoAlloc, nil); err != nil {
+	if err := Encode(&data, img, NoAlloc, nil); err != nil {
 		panic(err)
 	}
 

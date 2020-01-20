@@ -18,7 +18,7 @@ func BenchmarkTextImageRender(b *testing.B) {
 	img := testimg.RandBlocks{W: 512, H: 512, BlockW: 1, BlockH: 1}.RGBA(r)
 	b.Run("rgb-1x1", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			if err := Encode(&data, img, FlagNoAlloc, nil); err != nil {
+			if err := Encode(&data, img, NoAlloc, nil); err != nil {
 				panic(err)
 			}
 		}
@@ -26,7 +26,7 @@ func BenchmarkTextImageRender(b *testing.B) {
 
 	b.Run("rgb-1x1-cells", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			if err := EncodeCells(&cells, img, FlagNoAlloc, nil); err != nil {
+			if err := EncodeCells(&cells, img, NoAlloc, nil); err != nil {
 				panic(err)
 			}
 		}
@@ -35,7 +35,7 @@ func BenchmarkTextImageRender(b *testing.B) {
 	img = testimg.RandBlocks{W: 512, H: 512, BlockW: 10, BlockH: 10}.RGBA(r)
 	b.Run("rgb-10x10", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			if err := Encode(&data, img, FlagNoAlloc, nil); err != nil {
+			if err := Encode(&data, img, NoAlloc, nil); err != nil {
 				panic(err)
 			}
 		}
@@ -44,7 +44,7 @@ func BenchmarkTextImageRender(b *testing.B) {
 	img = testimg.RandBlocks{W: 512, H: 512, BlockW: 1, BlockH: 1}.RGBA(r)
 	b.Run("256-1x1", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			if err := Encode(&data, img, FlagNoAlloc|FlagMode256, nil); err != nil {
+			if err := Encode(&data, img, NoAlloc|Color256, nil); err != nil {
 				panic(err)
 			}
 		}
@@ -53,7 +53,7 @@ func BenchmarkTextImageRender(b *testing.B) {
 	img = testimg.RandBlocks{W: 512, H: 512, BlockW: 10, BlockH: 10}.RGBA(r)
 	b.Run("256-10x10", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			if err := Encode(&data, img, FlagNoAlloc|FlagMode256, nil); err != nil {
+			if err := Encode(&data, img, NoAlloc|Color256, nil); err != nil {
 				panic(err)
 			}
 		}

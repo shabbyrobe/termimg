@@ -7,11 +7,23 @@ import (
 type Flag int
 
 const (
-	FlagMode256 Flag = 1 << iota
-	FlagMode16
-	FlagNoAlloc
-	FlagHalfBlockOnly
-	FlagNoReduce
+	// Use only the 256-color terminal palette instead of true color.
+	Color256 Flag = 1 << iota
+
+	// Use only the 16-color terminal palette instead of true color. Takes precedence over
+	// Color256.
+	Color16
+
+	// Raise an error if encoding into an EscapeData would cause a reallocation
+	// of the buffer:
+	NoAlloc
+
+	// Use the '▄' character only, don't do any fancy bitmap stuff:
+	HalfBlockOnly
+
+	// Do not compress runs of colors in the EscapeData output; every character
+	// will have its color emitted.
+	NoReduce
 )
 
 // Encode img into an EscapeData as a series of escape codes and UTF-8 runes suitable for

@@ -44,7 +44,7 @@ func (rend *renderer) renderCells(into *CellData, rimg image.Image, flags Flag) 
 	max := into.Cols * into.Rows
 
 	if cap(into.Cells) < max {
-		if flags&FlagNoAlloc != 0 {
+		if flags&NoAlloc != 0 {
 			panic(fmt.Errorf("termimg: buffer size %d, expected %d", len(into.Cells), max))
 		}
 		into.Cells = make([]Cell, max)
@@ -55,7 +55,7 @@ func (rend *renderer) renderCells(into *CellData, rimg image.Image, flags Flag) 
 
 	n, xEnd, yEnd := 0, w-4, h-8
 
-	if flags&FlagHalfBlockOnly != 0 {
+	if flags&HalfBlockOnly != 0 {
 		for y := 0; y <= yEnd; y += 8 {
 			for x := 0; x <= xEnd; x += 4 {
 				into.Cells[n] = rend.pixelCharDataForCode(img, x, y, '▄', lowerHalfBitmap)
@@ -93,7 +93,7 @@ func (rend *renderer) renderEscapes(into *EscapeData, rimg image.Image, flags Fl
 	into.n = 0
 
 	if len(into.bits) < max {
-		if flags&FlagNoAlloc != 0 {
+		if flags&NoAlloc != 0 {
 			panic(fmt.Errorf("termimg: buffer size %d, expected %d", len(into.bits), max))
 		}
 		into.bits = make([]byte, max)
@@ -101,7 +101,7 @@ func (rend *renderer) renderEscapes(into *EscapeData, rimg image.Image, flags Fl
 
 	xEnd, yEnd := w-4, h-8
 
-	if flags&FlagHalfBlockOnly == 0 {
+	if flags&HalfBlockOnly == 0 {
 		for y := 0; y <= yEnd; y += 8 {
 			for x := 0; x <= xEnd; x += 4 {
 				into.put(flags, rend.pixelCharData(img, x, y))

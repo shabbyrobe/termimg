@@ -32,10 +32,10 @@ func (t *EscapeData) nextRow() {
 }
 
 func (t *EscapeData) put(flags Flag, cell Cell) {
-	if flags&FlagNoReduce != 0 || t.firstOfRow || t.lastBg != cell.BgColor {
-		if flags&FlagMode16 != 0 {
+	if flags&NoReduce != 0 || t.firstOfRow || t.lastBg != cell.BgColor {
+		if flags&Color16 != 0 {
 			t.n += cell.PutBg16(t.bits[t.n:])
-		} else if flags&FlagMode256 != 0 {
+		} else if flags&Color256 != 0 {
 			t.n += cell.PutBg256(t.bits[t.n:])
 		} else {
 			t.n += cell.PutBg(t.bits[t.n:])
@@ -43,10 +43,10 @@ func (t *EscapeData) put(flags Flag, cell Cell) {
 		t.lastBg = cell.BgColor
 	}
 
-	if flags&FlagNoReduce != 0 || t.firstOfRow || t.lastFg != cell.FgColor {
-		if flags&FlagMode16 != 0 {
+	if flags&NoReduce != 0 || t.firstOfRow || t.lastFg != cell.FgColor {
+		if flags&Color16 != 0 {
 			t.n += cell.PutFg16(t.bits[t.n:])
-		} else if flags&FlagMode256 != 0 {
+		} else if flags&Color256 != 0 {
 			t.n += cell.PutFg256(t.bits[t.n:])
 		} else {
 			t.n += cell.PutFg(t.bits[t.n:])
@@ -71,7 +71,7 @@ func (t *EscapeData) maxPixelSize(flags Flag) int {
 
 	c.Code = 0x10fffe // 4-byte utf-8
 	x.SetBuffer(b[:])
-	x.put(flags|FlagNoReduce, c)
+	x.put(flags|NoReduce, c)
 	return x.n
 }
 
