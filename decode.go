@@ -113,7 +113,8 @@ func DecodeConfigBytes(data []byte) (config image.Config, err error) {
 	return config, nil
 }
 
-// Decode a raw terminal image made of color escapes, runes and newlines.
+// DecodeImage a raw terminal image made of color escapes, runes and newlines into
+// an rgba.Image.
 //
 // If patternSet is nil, DefaultPatternSet is used.
 //
@@ -122,16 +123,16 @@ func DecodeConfigBytes(data []byte) (config image.Config, err error) {
 //
 // Decode is not built for speed.
 //
-func Decode(rdr io.Reader, patternSet *PatternSet, size *image.Point) (img *rgba.Image, err error) {
+func DecodeImage(rdr io.Reader, patternSet *PatternSet, size *image.Point) (img *rgba.Image, err error) {
 	data, err := ioutil.ReadAll(rdr)
 	if err != nil {
 		return nil, err
 	}
-	return DecodeBytes(data, patternSet, size)
+	return DecodeImageBytes(data, patternSet, size)
 }
 
-// DecodeBytes decodes a raw terminal image made of color escapes,
-// runes and newlines.
+// DecodeImageBytes decodes a raw terminal image made of color escapes,
+// runes and newlines into an rgba.Image.
 //
 // If patternSet is nil, DefaultPatternSet is used.
 //
@@ -140,7 +141,7 @@ func Decode(rdr io.Reader, patternSet *PatternSet, size *image.Point) (img *rgba
 //
 // DecodeBytes is not built for speed.
 //
-func DecodeBytes(data []byte, patternSet *PatternSet, size *image.Point) (img *rgba.Image, err error) {
+func DecodeImageBytes(data []byte, patternSet *PatternSet, size *image.Point) (img *rgba.Image, err error) {
 	if patternSet == nil {
 		patternSet = DefaultPatternSet
 	}

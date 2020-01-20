@@ -32,7 +32,7 @@ func TestDecode(t *testing.T) {
 				panic(err)
 			}
 
-			first, err := DecodeBytes(data.Value(), nil, nil)
+			first, err := DecodeImageBytes(data.Value(), nil, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -42,7 +42,7 @@ func TestDecode(t *testing.T) {
 				panic(err)
 			}
 
-			second, err := DecodeBytes(back.Value(), nil, nil)
+			second, err := DecodeImageBytes(back.Value(), nil, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -73,7 +73,7 @@ func BenchmarkDecode(b *testing.B) {
 	b.Run("rgb-1x1", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			var err error
-			BenchRGBAImage, err = DecodeBytes(data.Value(), nil, &sz)
+			BenchRGBAImage, err = DecodeImageBytes(data.Value(), nil, &sz)
 			if err != nil {
 				panic(err)
 			}
