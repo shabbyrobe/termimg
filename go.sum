@@ -1,0 +1,6 @@
+github.com/shabbyrobe/imgx/rgba v0.0.0-20200120053855-9459aef738e0 h1:wGwqSpWWHlxS01ZbYhG3rMvgWLWQUmKi5j3GcbFi1YA=
+github.com/shabbyrobe/imgx/rgba v0.0.0-20200120053855-9459aef738e0/go.mod h1:GvpD6XOFQ5bEbQkSWFsdNZYLw1tkzwnEnhNqWhOmjpU=
+github.com/shabbyrobe/imgx/termpalette v0.0.0-20200120053855-9459aef738e0 h1:aABQUi1qTVO1GROTHwMvg+Y3WSrxMXS0WQ1z1boddvQ=
+github.com/shabbyrobe/imgx/termpalette v0.0.0-20200120053855-9459aef738e0/go.mod h1:ix/8A9U2zlACwWESWafBeItUzYKZfzWhBrYNGuFF0NE=
+github.com/shabbyrobe/imgx/testimg v0.0.0-20200120051032-40288d41177c h1:nyCLlfSBGYwBlVNUBv7TT+GSjF3CPXFfjcX1m7zR5wY=
+github.com/shabbyrobe/imgx/testimg v0.0.0-20200120051032-40288d41177c/go.mod h1:jiGZnuO7Q1AW3wCQZLGSJGE6eSWW0pHGACyhFxQfP1Y=
