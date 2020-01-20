@@ -26,6 +26,10 @@ func CellDataFromTerm(cols, rows int) CellData {
 	}
 }
 
+func (cd CellData) CellAt(col, row int) Cell {
+	return cd.Cells[row*cd.Cols+col]
+}
+
 type Cell struct {
 	FgColor color.RGBA
 	BgColor color.RGBA
@@ -46,6 +50,18 @@ func (c Cell) Fg16() uint8 {
 
 func (c Cell) Bg16() uint8 {
 	return uint8(termpalette.Escape16BgInt[index16.NearestRGBAIndex(c.BgColor)])
+}
+
+// FgRGB32 is useful when using tcell as it allows you to do this:
+//	tcell.NewRGBColor(cell.FgRGB32())
+func (c Cell) FgRGB32() (r, g, b int32) {
+	return int32(c.FgColor.R), int32(c.FgColor.G), int32(c.FgColor.B)
+}
+
+// BgRGB32 is useful when using tcell as it allows you to do this:
+//	tcell.NewRGBColor(cell.BgRGB32())
+func (c Cell) BgRGB32() (r, g, b int32) {
+	return int32(c.BgColor.R), int32(c.BgColor.G), int32(c.BgColor.B)
 }
 
 func (c *Cell) PutCode(buf []byte) (n int) {
