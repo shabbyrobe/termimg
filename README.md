@@ -10,6 +10,18 @@ should not change much, but everything else is subject to change. If you
 require stability, vendor this library into your repo.
 
 
+## Examples
+
+Default mode (using the default PatternSet):
+
+![termimg-1](https://user-images.githubusercontent.com/288426/72950578-e78cff00-3ddf-11ea-80fc-b43194f1d65c.png)
+
+
+Using the '▄' character only (via the `termimg.HalfBlockOnly` flag):
+
+![termimg-2](https://user-images.githubusercontent.com/288426/72950585-ed82e000-3ddf-11ea-9972-f4a89941b989.png)
+
+
 ## Quickstart
 
 First, you need an `image.Image`. See `png.Decode` or `jpeg.Decode` to get something
@@ -26,39 +38,42 @@ like https://github.com/gdamore/tcell
 
 To render an `image.Image` into an `EscapeData`, then print to stdout:
 
-    var img image.Image // presuming you already have one of these...
+```go
+var img image.Image // presuming you already have one of these...
 
-	var data EscapeData
-    if err := Encode(&data, img, 0, nil); err != nil {
-        // ...
-    }
-    os.Stdout.Write(data.Value())
+var data EscapeData
+if err := Encode(&data, img, 0, nil); err != nil {
+    // ...
+}
+os.Stdout.Write(data.Value())
+``
 
 To render into a `CellData` into a `tcell.Screen`:
 
-    var img image.Image // presuming you already have one of these...
+```go
+var img image.Image // presuming you already have one of these...
 
-    screen, err := tcell.NewScreen()
-    err := screen.Init()
-    screen.Clear()
-    defer screen.Fini()
+screen, err := tcell.NewScreen()
+err := screen.Init()
+screen.Clear()
+defer screen.Fini()
 
-	var cells CellData
-    if err := EncodeCells(&cells, img, 0, nil); err != nil {
-        // ...
+var cells CellData
+if err := EncodeCells(&cells, img, 0, nil); err != nil {
+    // ...
+}
+
+for x := 0; x < cells.Cols; x++ {
+    for y := 0; y < cells.Rows; y++ {
+        cell := cells.CellAt(x, y)
+        style := tcell.StyleDefault.
+            Foreground(tcell.NewRGBColor(cell.FgRGB32())).
+            Background(tcell.NewRGBColor(cell.BgRGB32()))
+
+        scr.SetCell(x, y, style, cell.Code)
     }
+}
 
-	for x := 0; x < cells.Cols; x++ {
-		for y := 0; y < cells.Rows; y++ {
-			cell := cells.CellAt(x, y)
-			style := tcell.StyleDefault.
-				Foreground(tcell.NewRGBColor(cell.FgRGB32())).
-				Background(tcell.NewRGBColor(cell.BgRGB32()))
-
-			scr.SetCell(x, y, style, cell.Code)
-		}
-	}
-
-    // Show the image for 2 seconds then quit:
-    time.Sleep(2 * time.Second)
-
+// Show the image for 2 seconds then quit:
+time.Sleep(2 * time.Second)
+```
