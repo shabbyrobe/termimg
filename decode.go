@@ -14,6 +14,122 @@ import (
 	"github.com/shabbyrobe/imgx/termpalette"
 )
 
+func DecodeConfig(r io.Reader) (config image.Config, err error) {
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return config, err
+	}
+	return DecodeConfigBytes(data)
+}
+
+func DecodeConfigBytes(data []byte) (config image.Config, err error) {
+	config.ColorModel = color.RGBAModel
+
+	cols, rows := decodeSize(data)
+	config.Width = cols * cellW
+	config.Height = rows * cellH
+
+	return config, nil
+}
+
+// DecodeImage decodes a raw terminal image made of color escapes, runes and newlines into
+// an rgba.Image.
+//
+// If patternSet is nil, DefaultPatternSet is used.
+//
+// If size is nil, it is inferred from the data. This will be slower.
+//
+func DecodeImage(rdr io.Reader, patternSet *PatternSet, size *image.Point) (img *rgba.Image, err error) {
+	data, err := ioutil.ReadAll(rdr)
+	if err != nil {
+		return nil, err
+	}
+	return DecodeImageBytes(data, patternSet, size)
+}
+
+// DecodeImageBytes decodes a raw terminal image made of color escapes,
+// runes and newlines into an rgba.Image.
+//
+// See DecodeImage()
+//
+func DecodeImageBytes(data []byte, patternSet *PatternSet, size *image.Point) (img *rgba.Image, err error) {
+	if patternSet == nil {
+		patternSet = DefaultPatternSet
+	}
+
+	var cols, rows int
+
+	// If size is not passed, we need to scan the data once in order to determine it.
+	if size != nil {
+		cols = size.X / cellW
+		rows = size.Y / cellH
+	} else {
+		cols, rows = decodeSize(data)
+		size = &image.Point{
+			X: cols * cellW,
+			Y: rows * cellH,
+		}
+	}
+
+	target := &decodeImageTarget{
+		img: rgba.New(*size),
+	}
+
+	dec := &decoder{
+		data:       data,
+		patternSet: patternSet,
+		target:     target,
+		rows:       rows,
+		cols:       cols,
+	}
+
+	if err := dec.decode(); err != nil {
+		return nil, err
+	}
+	return target.img, nil
+}
+
+// DecodeCells decodes a raw terminal image made of color escapes, runes and newlines into
+// a terimg.CellData.
+//
+// If patternSet is nil, DefaultPatternSet is used.
+//
+func DecodeCells(rdr io.Reader, patternSet *PatternSet) (cells CellData, err error) {
+	data, err := ioutil.ReadAll(rdr)
+	if err != nil {
+		return cells, err
+	}
+	return DecodeCellsBytes(data, patternSet)
+}
+
+// DecodeCellsBytes decodes a raw terminal image made of color escapes,
+// runes and newlines into an rgba.Image.
+//
+// See DecodeCells()
+//
+func DecodeCellsBytes(data []byte, patternSet *PatternSet) (cells CellData, err error) {
+	if patternSet == nil {
+		patternSet = DefaultPatternSet
+	}
+	cols, rows := decodeSize(data)
+
+	target := &decodeCellsTarget{
+		cells: CellDataFromTerm(cols, rows),
+	}
+
+	dec := &decoder{
+		data:       data,
+		patternSet: patternSet,
+		target:     target,
+		rows:       rows,
+		cols:       cols,
+	}
+	if err := dec.decode(); err != nil {
+		return cells, err
+	}
+	return target.cells, nil
+}
+
 var (
 	ptnTrueColor = regexp.MustCompile(`^\x1b\[(?P<kind>[34])8;2;(?P<r>[0-9]+);(?P<g>[0-9]+);(?P<b>[0-9]+)m`)
 	ptn256Color  = regexp.MustCompile(`^\x1b\[(?P<kind>[34])8;5;(?P<color>[0-9]+)m`)
@@ -42,138 +158,11 @@ func init() {
 	mustScanSubexps(ptn16Color, "color", &sub16Color)
 }
 
-func DecodeConfig(r io.Reader) (config image.Config, err error) {
-	data, err := ioutil.ReadAll(r)
-	if err != nil {
-		return config, err
-	}
-	return DecodeConfigBytes(data)
-}
-
-func DecodeConfigBytes(data []byte) (config image.Config, err error) {
-	var rows, cols, col int
-
-	data = bytes.TrimSpace(data)
-	config.ColorModel = color.RGBAModel
-
-	for i := 0; i < len(data); {
-		for {
-			if m := ptnTrueColor.Find(data[i:]); m != nil {
-				i += len(m)
-			} else if m := ptn256Color.Find(data[i:]); m != nil {
-				i += len(m)
-			} else if m := ptn16Color.Find(data[i:]); m != nil {
-				i += len(m)
-			} else if bytes.HasPrefix(data[i:], reset) {
-				i += len(reset)
-			} else {
-				break
-			}
-		}
-
-		if i >= len(data) {
-			break
-		}
-
-		if data[i] == ' ' || data[i] == '\r' || data[i] == '\t' {
-			i++
-			continue
-
-		} else if data[i] == '\n' {
-			if col > cols {
-				cols = col
-			}
-			rows++
-			col = 0
-			i++
-			continue
-
-		} else {
-			rn, sz := utf8.DecodeRune(data[i:])
-			_ = rn
-			i += sz
-
-			// If it's nothing else, we have to presume it's a rune:
-			col++
-		}
-	}
-
-	// Don't forget to account for the last row (now that we've possibly removed the last
-	// newline!)
-	if col > 0 {
-		if col > cols {
-			cols = col
-		}
-		rows++
-	}
-
-	config.Width = cols * cellW
-	config.Height = rows * cellH
-
-	return config, nil
-}
-
-// DecodeImage a raw terminal image made of color escapes, runes and newlines into
-// an rgba.Image.
-//
-// If patternSet is nil, DefaultPatternSet is used.
-//
-// If size is nil, it is inferred by calling DecodeConfigBytes() (though this requires an
-// extra full iteration of data).
-//
-// Decode is not built for speed.
-//
-func DecodeImage(rdr io.Reader, patternSet *PatternSet, size *image.Point) (img *rgba.Image, err error) {
-	data, err := ioutil.ReadAll(rdr)
-	if err != nil {
-		return nil, err
-	}
-	return DecodeImageBytes(data, patternSet, size)
-}
-
-// DecodeImageBytes decodes a raw terminal image made of color escapes,
-// runes and newlines into an rgba.Image.
-//
-// If patternSet is nil, DefaultPatternSet is used.
-//
-// If size is nil, it is inferred by calling DecodeConfigBytes() (though this requires an
-// extra full iteration of data).
-//
-// DecodeBytes is not built for speed.
-//
-func DecodeImageBytes(data []byte, patternSet *PatternSet, size *image.Point) (img *rgba.Image, err error) {
-	if patternSet == nil {
-		patternSet = DefaultPatternSet
-	}
-	data = bytes.TrimSpace(data)
-
-	// If size is not passed, we need to scan the data once in order to determine it.
-	if size == nil {
-		conf, err := DecodeConfigBytes(data)
-		if err != nil {
-			return nil, err
-		}
-		size = &image.Point{conf.Width, conf.Height}
-	}
-
-	dec := &decoder{
-		data:       data,
-		patternSet: patternSet,
-		size:       size,
-		img:        rgba.New(*size),
-	}
-
-	if err := dec.decode(); err != nil {
-		return nil, err
-	}
-	return dec.img, nil
-}
-
 type decoder struct {
 	data       []byte
 	patternSet *PatternSet
-	size       *image.Point
-	img        *rgba.Image
+	target     decoderTarget
+	rows, cols int
 	i          int
 
 	fg, bg       color.RGBA
@@ -280,7 +269,7 @@ func (dec *decoder) readColor() error {
 }
 
 func (dec *decoder) decode() error {
-	var x, y int
+	var col, row int
 
 	for dec.i < len(dec.data) {
 		if err := dec.readColor(); err == io.EOF {
@@ -291,17 +280,16 @@ func (dec *decoder) decode() error {
 
 		if dec.data[dec.i] == ' ' || dec.data[dec.i] == '\r' || dec.data[dec.i] == '\t' {
 			dec.i++
-			continue
 
 		} else if dec.data[dec.i] == '\n' {
-			if x > dec.size.X {
-				return fmt.Errorf("termimg: image exceeded width %d at byte %d", dec.size.X, dec.i)
+			if col > dec.cols {
+				return fmt.Errorf("termimg: col exceeded width %d at byte %d", dec.cols, dec.i)
 			}
-			y += cellH
-			if y > dec.size.Y {
-				return fmt.Errorf("termimg: image exceeded height %d at byte %d", dec.size.Y, dec.i)
+			row++
+			if row > dec.rows {
+				return fmt.Errorf("termimg: row exceeded height %d at byte %d", dec.rows, dec.i)
 			}
-			x = 0
+			col = 0
 			dec.i++
 
 		} else if dec.data[dec.i] == '\x1b' {
@@ -333,25 +321,47 @@ func (dec *decoder) decode() error {
 				return fmt.Errorf("termimg: decode found a rune with no background color at byte %d", dec.i)
 			}
 
-			dec.setPixels(x, y, found.Bits)
+			dec.target.set(col, row, dec.fg, dec.bg, found)
 			dec.i += sz
-			x += cellW
+			col++
 		}
 	}
 
 	return nil
 }
 
-func (dec *decoder) setPixels(x, y int, bits uint32) {
+type decoderTarget interface {
+	set(col, row int, fg, bg color.RGBA, ptn *Pattern)
+}
+
+type decodeCellsTarget struct {
+	cells CellData
+}
+
+func (tgt *decodeCellsTarget) set(col, row int, fg, bg color.RGBA, ptn *Pattern) {
+	tgt.cells.Cells[tgt.cells.Cols*row+col] = Cell{
+		FgColor: fg,
+		BgColor: bg,
+		Code:    ptn.Rune,
+	}
+}
+
+type decodeImageTarget struct {
+	img *rgba.Image
+}
+
+func (tgt *decodeImageTarget) set(col, row int, fg, bg color.RGBA, ptn *Pattern) {
+	x, y := col*cellW, row*cellH
+
 	n := uint32(1 << 31)
 	for cellY := 0; cellY < 8; cellY++ {
-		yoff := (y + cellY) * dec.img.Stride
+		yoff := (y + cellY) * tgt.img.Stride
 		for cellX := 0; cellX < 4; cellX++ {
 			idx := yoff + x + cellX
-			if bits&n == 0 {
-				dec.img.Vals[idx] = dec.bg
+			if ptn.Bits&n == 0 {
+				tgt.img.Vals[idx] = bg
 			} else {
-				dec.img.Vals[idx] = dec.fg
+				tgt.img.Vals[idx] = fg
 			}
 			n >>= 1
 		}
@@ -359,6 +369,63 @@ func (dec *decoder) setPixels(x, y int, bits uint32) {
 }
 
 const cellW, cellH = 4, 8
+
+func decodeSize(data []byte) (cols, rows int) {
+	var col int
+
+	for i := 0; i < len(data); {
+		for {
+			if m := ptnTrueColor.Find(data[i:]); m != nil {
+				i += len(m)
+			} else if m := ptn256Color.Find(data[i:]); m != nil {
+				i += len(m)
+			} else if m := ptn16Color.Find(data[i:]); m != nil {
+				i += len(m)
+			} else if bytes.HasPrefix(data[i:], reset) {
+				i += len(reset)
+			} else {
+				break
+			}
+		}
+
+		if i >= len(data) {
+			break
+		}
+
+		if data[i] == ' ' || data[i] == '\r' || data[i] == '\t' {
+			i++
+			continue
+
+		} else if data[i] == '\n' {
+			if col > cols {
+				cols = col
+			}
+			rows++
+			col = 0
+			i++
+			continue
+
+		} else {
+			rn, sz := utf8.DecodeRune(data[i:])
+			_ = rn
+			i += sz
+
+			// If it's nothing else, we have to presume it's a rune:
+			col++
+		}
+	}
+
+	// Don't forget to account for the last row (now that we've possibly removed the last
+	// newline!)
+	if col > 0 {
+		if col > cols {
+			cols = col
+		}
+		rows++
+	}
+
+	return cols, rows
+}
 
 var colorStringLookup = make(map[string]uint8)
 

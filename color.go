@@ -5,6 +5,7 @@ import (
 )
 
 func term256AsRGB(tc uint8) (r, g, b uint8) {
+	// FIXME: can this use termpalette?
 	if tc < 16 {
 		c := term16col[tc]
 		return c.R, c.G, c.B

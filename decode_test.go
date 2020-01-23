@@ -11,7 +11,7 @@ import (
 	"github.com/shabbyrobe/imgx/testimg"
 )
 
-func TestDecode(t *testing.T) {
+func TestDecodeImage(t *testing.T) {
 	r := rand.New(rand.NewSource(0))
 	for idx, tc := range []struct {
 		name string
@@ -48,6 +48,41 @@ func TestDecode(t *testing.T) {
 			}
 
 			if !reflect.DeepEqual(first.Vals, second.Vals) {
+				t.Fatal()
+			}
+		})
+	}
+}
+
+func TestDecodeCells(t *testing.T) {
+	r := rand.New(rand.NewSource(0))
+	for idx, tc := range []struct {
+		name string
+		img  image.Image
+	}{
+		{"rgb8x8", testimg.RandBlocks{W: 16, H: 16, BlockW: 8, BlockH: 8}.RGBA(r)},
+	} {
+		t.Run(fmt.Sprintf("%s/%d", tc.name, idx), func(t *testing.T) {
+			// Brute-force check of Decode: encodes to runes, then decodes back to an
+			// image. Then takes that image, encodes to runes again, then back to an
+			// image again, and makes sure the two images are the same.
+
+			var data EscapeData
+			if err := Encode(&data, tc.img, 0, nil); err != nil {
+				panic(err)
+			}
+
+			var cells CellData
+			if err := EncodeCells(&cells, tc.img, 0, nil); err != nil {
+				panic(err)
+			}
+
+			back, err := DecodeCellsBytes(data.Value(), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if !reflect.DeepEqual(cells, back) {
 				t.Fatal()
 			}
 		})
