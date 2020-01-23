@@ -46,7 +46,7 @@ if err := Encode(&data, img, 0, nil); err != nil {
     // ...
 }
 os.Stdout.Write(data.Value())
-``
+```
 
 To render into a `CellData` into a `tcell.Screen`:
 
