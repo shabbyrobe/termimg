@@ -34,7 +34,9 @@ func parsePattern(s string) (p Pattern, err error) {
 		p.Rune = rune(r)
 	}
 
-	bmpstr := strings.Replace(fields[1], "_", "", -1)
+	bmpstr := fields[1]
+	bmpstr = strings.Replace(bmpstr, "_", "", -1)
+	bmpstr = strings.Replace(bmpstr, ".", "0", -1)
 	bmpstr = strings.TrimPrefix(bmpstr, "0b")
 	bmpstr = strings.TrimPrefix(bmpstr, "0B")
 
