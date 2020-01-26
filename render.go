@@ -186,12 +186,13 @@ func (r *renderer) pixelCharDataForCode(img *rgba.Image, x0, y0 int, code rune, 
 
 // Find the best character and colors for a 4x8 part of the image at the given position
 func (rend *renderer) pixelCharData(img *rgba.Image, x0, y0 int) (result Cell) {
+
+	// Determine the minimum and maximum value for each color channel:
 	var minr, ming, minb uint32 = 0xFF, 0xFF, 0xFF
 	var maxr, maxg, maxb uint32 = 0, 0, 0
 
 	rend.colorsSize = 0
 
-	// Determine the minimum and maximum value for each color channel
 	yN, xN, yOff := y0+8, x0+4, y0*img.Stride
 
 	for y := y0; y < yN; y++ {
@@ -248,7 +249,7 @@ func (rend *renderer) pixelCharData(img *rgba.Image, x0, y0 int) (result Cell) {
 		yOff += img.Stride
 	}
 
-	var count2 uint32
+	var count2 uint32 // sum of the number of times the most common two colours appear in the 4x8 segment
 	var maxCountColor1 uint32
 	var maxCountColor2 uint32
 
@@ -274,6 +275,9 @@ func (rend *renderer) pixelCharData(img *rgba.Image, x0, y0 int) (result Cell) {
 	}
 
 	var setBits uint32 = 0 // Important - keep as uint32
+
+	// If the sum of the number of pixels containing max1 and max2 is more than half
+	// the number of pixels, use 'direct' mode:
 	var direct = count2 > (8*4)/2
 
 	if direct {
