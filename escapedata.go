@@ -13,8 +13,9 @@ import (
 // that the byte slice returned by Value() will change.
 type EscapeData struct {
 	bits []byte
-	n    int
 
+	// If you add any more state to EscapeData, don't forget to add it to Reset():
+	n          int
 	firstOfRow bool
 	lastBg     color.RGBA
 	lastFg     color.RGBA
@@ -41,6 +42,13 @@ func (t *EscapeData) MaxSize(flags Flag, w, h int) int {
 // SetBuffer gives EscapeData an existing scratch area to work with.
 func (t *EscapeData) SetBuffer(buf []byte) {
 	t.bits = buf
+}
+
+func (t *EscapeData) Reset() {
+	t.n = 0
+	t.firstOfRow = true
+	t.lastFg = color.RGBA{}
+	t.lastBg = color.RGBA{}
 }
 
 func (t *EscapeData) nextRow() {

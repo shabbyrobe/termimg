@@ -90,7 +90,7 @@ func (rend *renderer) renderEscapes(into *EscapeData, rimg image.Image, flags Fl
 	w, h := size.X, size.Y
 	max := into.MaxSize(flags, w, h)
 
-	into.n = 0
+	into.Reset()
 
 	if len(into.bits) < max {
 		if flags&NoAlloc != 0 {
