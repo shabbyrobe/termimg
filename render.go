@@ -332,13 +332,15 @@ func (rend *renderer) pixelCharData(img *rgba.Image, x0, y0 int) (result Cell) {
 			splitChannel, threshhold = 'b', minb+(bdiff/2)
 		}
 
+		yOff := y0 * img.Stride
+
 		// Compute a bitmap using the given split and sum the color values for both buckets.
 		yN, xN := y0+8, x0+4
 		for y := y0; y < yN; y++ {
 			for x := x0; x < xN; x++ {
 				setBits <<= 1
 
-				c := img.Vals[y*img.Stride+x]
+				c := img.Vals[yOff+x]
 
 				switch splitChannel {
 				case 'r':
@@ -355,6 +357,8 @@ func (rend *renderer) pixelCharData(img *rgba.Image, x0, y0 int) (result Cell) {
 					}
 				}
 			}
+
+			yOff += img.Stride
 		}
 	}
 
