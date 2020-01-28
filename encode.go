@@ -2,6 +2,8 @@ package termimg
 
 import (
 	"image"
+
+	"github.com/shabbyrobe/imgx/rgba"
 )
 
 type Flag int
@@ -26,6 +28,10 @@ const (
 	NoReduce
 )
 
+type CellRenderer interface {
+	cell(r *imageRenderer, img *rgba.Image, x0, y0 int) (result Cell)
+}
+
 // Encode img into an EscapeData as a series of escape codes and UTF-8 runes suitable for
 // writing directly to the stdout of a VT100-compatible terminal. If 'into' is 'nil', an
 // EscapeData is allocated.
@@ -38,11 +44,11 @@ const (
 // EscapeData can be reused to help control allocations. It will be grown if necessary,
 // but never shrunk. To raise an error if an allocation would occur, pass FlagNoAlloc.
 //
-func Encode(into *EscapeData, img image.Image, flags Flag, patternSet *PatternSet) error {
-	if patternSet == nil {
-		patternSet = DefaultPatternSet
+func Encode(into *EscapeData, img image.Image, flags Flag, cr CellRenderer) error {
+	if cr == nil {
+		cr = DefaultRenderer
 	}
-	return newRenderer(patternSet).renderEscapes(into, img, flags)
+	return newImageRenderer(cr).renderEscapes(into, img, flags)
 }
 
 // Encode img into a CellData as a series of RGBA colors and UTF-8 runes, suitable for
@@ -57,9 +63,9 @@ func Encode(into *EscapeData, img image.Image, flags Flag, patternSet *PatternSe
 // CellData can be reused to help control allocations. It will be grown if necessary, but
 // never shrunk. To raise an error if an allocation would occur, pass FlagNoAlloc.
 //
-func EncodeCells(into *CellData, img image.Image, flags Flag, patternSet *PatternSet) error {
-	if patternSet == nil {
-		patternSet = DefaultPatternSet
+func EncodeCells(into *CellData, img image.Image, flags Flag, cr CellRenderer) error {
+	if cr == nil {
+		cr = DefaultRenderer
 	}
-	return newRenderer(patternSet).renderCells(into, img, flags)
+	return newImageRenderer(cr).renderCells(into, img, flags)
 }

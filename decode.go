@@ -39,12 +39,12 @@ func DecodeConfigBytes(data []byte) (config image.Config, err error) {
 //
 // If size is nil, it is inferred from the data. This will be slower.
 //
-func DecodeImage(rdr io.Reader, patternSet *PatternSet, size *image.Point) (img *rgba.Image, err error) {
+func DecodeImage(rdr io.Reader, bit *BitmapRenderer, size *image.Point) (img *rgba.Image, err error) {
 	data, err := ioutil.ReadAll(rdr)
 	if err != nil {
 		return nil, err
 	}
-	return DecodeImageBytes(data, patternSet, size)
+	return DecodeImageBytes(data, bit, size)
 }
 
 // DecodeImageBytes decodes a raw terminal image made of color escapes,
@@ -52,9 +52,9 @@ func DecodeImage(rdr io.Reader, patternSet *PatternSet, size *image.Point) (img 
 //
 // See DecodeImage()
 //
-func DecodeImageBytes(data []byte, patternSet *PatternSet, size *image.Point) (img *rgba.Image, err error) {
-	if patternSet == nil {
-		patternSet = DefaultPatternSet
+func DecodeImageBytes(data []byte, bit *BitmapRenderer, size *image.Point) (img *rgba.Image, err error) {
+	if bit == nil {
+		bit = blockRenderer
 	}
 
 	var cols, rows int
@@ -76,11 +76,11 @@ func DecodeImageBytes(data []byte, patternSet *PatternSet, size *image.Point) (i
 	}
 
 	dec := &decoder{
-		data:       data,
-		patternSet: patternSet,
-		target:     target,
-		rows:       rows,
-		cols:       cols,
+		data:   data,
+		bit:    bit,
+		target: target,
+		rows:   rows,
+		cols:   cols,
 	}
 
 	if err := dec.decode(); err != nil {
@@ -92,14 +92,14 @@ func DecodeImageBytes(data []byte, patternSet *PatternSet, size *image.Point) (i
 // DecodeCells decodes a raw terminal image made of color escapes, runes and newlines into
 // a terimg.CellData.
 //
-// If patternSet is nil, DefaultPatternSet is used.
+// If bit is nil, BlockRenderer is used.
 //
-func DecodeCells(rdr io.Reader, patternSet *PatternSet) (cells CellData, err error) {
+func DecodeCells(rdr io.Reader, bit *BitmapRenderer) (cells CellData, err error) {
 	data, err := ioutil.ReadAll(rdr)
 	if err != nil {
 		return cells, err
 	}
-	return DecodeCellsBytes(data, patternSet)
+	return DecodeCellsBytes(data, bit)
 }
 
 // DecodeCellsBytes decodes a raw terminal image made of color escapes,
@@ -107,9 +107,9 @@ func DecodeCells(rdr io.Reader, patternSet *PatternSet) (cells CellData, err err
 //
 // See DecodeCells()
 //
-func DecodeCellsBytes(data []byte, patternSet *PatternSet) (cells CellData, err error) {
-	if patternSet == nil {
-		patternSet = DefaultPatternSet
+func DecodeCellsBytes(data []byte, bit *BitmapRenderer) (cells CellData, err error) {
+	if bit == nil {
+		bit = blockRenderer
 	}
 	cols, rows := decodeSize(data)
 
@@ -118,11 +118,11 @@ func DecodeCellsBytes(data []byte, patternSet *PatternSet) (cells CellData, err 
 	}
 
 	dec := &decoder{
-		data:       data,
-		patternSet: patternSet,
-		target:     target,
-		rows:       rows,
-		cols:       cols,
+		data:   data,
+		bit:    bit,
+		target: target,
+		rows:   rows,
+		cols:   cols,
 	}
 	if err := dec.decode(); err != nil {
 		return cells, err
@@ -160,7 +160,7 @@ func init() {
 
 type decoder struct {
 	data       []byte
-	patternSet *PatternSet
+	bit        *BitmapRenderer
 	target     decoderTarget
 	rows, cols int
 	i          int
@@ -301,15 +301,15 @@ func (dec *decoder) decode() error {
 				return fmt.Errorf("termimg: decode expected rune at byte %d", dec.i)
 			}
 
-			var found *Pattern
-			for _, b := range dec.patternSet.Patterns {
+			var found *Bitmap
+			for _, b := range dec.bit.Bitmaps {
 				if rn == b.Rune {
 					found = &b
 					break
 				}
 			}
-			if found == nil && rn == dec.patternSet.Default.Rune {
-				found = &dec.patternSet.Default
+			if found == nil && rn == dec.bit.Default.Rune {
+				found = &dec.bit.Default
 			}
 			if found == nil {
 				return fmt.Errorf("termimg: decode found rune %q byte %d, but this rune does not exist in the pattern set", string(rn), dec.i)
@@ -331,18 +331,18 @@ func (dec *decoder) decode() error {
 }
 
 type decoderTarget interface {
-	set(col, row int, fg, bg color.RGBA, ptn *Pattern)
+	set(col, row int, fg, bg color.RGBA, bits *Bitmap)
 }
 
 type decodeCellsTarget struct {
 	cells CellData
 }
 
-func (tgt *decodeCellsTarget) set(col, row int, fg, bg color.RGBA, ptn *Pattern) {
+func (tgt *decodeCellsTarget) set(col, row int, fg, bg color.RGBA, bits *Bitmap) {
 	tgt.cells.Cells[tgt.cells.Cols*row+col] = Cell{
 		FgColor: fg,
 		BgColor: bg,
-		Code:    ptn.Rune,
+		Code:    bits.Rune,
 	}
 }
 
@@ -350,7 +350,7 @@ type decodeImageTarget struct {
 	img *rgba.Image
 }
 
-func (tgt *decodeImageTarget) set(col, row int, fg, bg color.RGBA, ptn *Pattern) {
+func (tgt *decodeImageTarget) set(col, row int, fg, bg color.RGBA, bits *Bitmap) {
 	x, y := col*cellW, row*cellH
 
 	n := uint32(1 << 31)
@@ -358,7 +358,7 @@ func (tgt *decodeImageTarget) set(col, row int, fg, bg color.RGBA, ptn *Pattern)
 		yoff := (y + cellY) * tgt.img.Stride
 		for cellX := 0; cellX < 4; cellX++ {
 			idx := yoff + x + cellX
-			if ptn.Bits&n == 0 {
+			if bits.Bits&n == 0 {
 				tgt.img.Vals[idx] = bg
 			} else {
 				tgt.img.Vals[idx] = fg
