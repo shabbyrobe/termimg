@@ -50,61 +50,6 @@ type BitmapRenderer struct {
 	Default Bitmap
 }
 
-// Return a Cell with the given code point and corresponding average fg and bg colors.
-func (bit *BitmapRenderer) cellForCode(rend *imageRenderer, img *rgba.Image, x0, y0 int, code rune, pattern Bits) (result Cell) {
-	result.Code = code
-
-	var (
-		fgCount = uint16(0)
-		bgCount = uint16(0)
-		mask    = Bits(0b_1000_0000_0000_0000_0000_0000_0000_0000)
-
-		avgBgr, avgBgg, avgBgb uint16
-		avgFgr, avgFgg, avgFgb uint16
-	)
-
-	yN, xN, yOff := y0+8, x0+4, y0*img.Stride
-
-	for y := y0; y < yN; y++ {
-		for x := x0; x < xN; x++ {
-			c := img.Vals[yOff+x]
-
-			if pattern&mask != 0 {
-				avgFgr += uint16(c.R)
-				avgFgg += uint16(c.G)
-				avgFgb += uint16(c.B)
-				fgCount++
-			} else {
-				avgBgr += uint16(c.R)
-				avgBgg += uint16(c.G)
-				avgBgb += uint16(c.B)
-				bgCount++
-			}
-			mask = mask >> 1
-		}
-		yOff += img.Stride
-	}
-
-	// Calculate the average color value for each bucket
-	if bgCount != 0 {
-		result.BgColor = color.RGBA{
-			R: uint8(avgBgr / bgCount),
-			G: uint8(avgBgg / bgCount),
-			B: uint8(avgBgb / bgCount),
-			A: 0xFF,
-		}
-	}
-	if fgCount != 0 {
-		result.FgColor = color.RGBA{
-			R: uint8(avgFgr / fgCount),
-			G: uint8(avgFgg / fgCount),
-			B: uint8(avgFgb / fgCount),
-			A: 0xFF,
-		}
-	}
-	return result
-}
-
 // Find the best character and colors for a 4x8 part of the image at the given position
 func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int) (result Cell) {
 	// Find the color channel (R, G or B) that has the biggest range of values for the current cell
@@ -332,4 +277,62 @@ func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int
 	}
 
 	return bit.cellForCode(rend, img, x0, y0, best.Rune, best.Bits)
+}
+
+// Return a Cell with the given code point and corresponding average fg and bg colors.
+//
+// NOTE: This is duplicated with the half-block renderer... I tried to share the code
+// by making it a global function but got a 30% slowdown. WAT?
+func (bit *BitmapRenderer) cellForCode(rend *imageRenderer, img *rgba.Image, x0, y0 int, code rune, pattern Bits) (result Cell) {
+	result.Code = code
+
+	var (
+		fgCount = uint16(0)
+		bgCount = uint16(0)
+		mask    = Bits(0b_1000_0000_0000_0000_0000_0000_0000_0000)
+
+		avgBgr, avgBgg, avgBgb uint16
+		avgFgr, avgFgg, avgFgb uint16
+	)
+
+	yN, xN, yOff := y0+8, x0+4, y0*img.Stride
+
+	for y := y0; y < yN; y++ {
+		for x := x0; x < xN; x++ {
+			c := img.Vals[yOff+x]
+
+			if pattern&mask != 0 {
+				avgFgr += uint16(c.R)
+				avgFgg += uint16(c.G)
+				avgFgb += uint16(c.B)
+				fgCount++
+			} else {
+				avgBgr += uint16(c.R)
+				avgBgg += uint16(c.G)
+				avgBgb += uint16(c.B)
+				bgCount++
+			}
+			mask = mask >> 1
+		}
+		yOff += img.Stride
+	}
+
+	// Calculate the average color value for each bucket
+	if bgCount != 0 {
+		result.BgColor = color.RGBA{
+			R: uint8(avgBgr / bgCount),
+			G: uint8(avgBgg / bgCount),
+			B: uint8(avgBgb / bgCount),
+			A: 0xFF,
+		}
+	}
+	if fgCount != 0 {
+		result.FgColor = color.RGBA{
+			R: uint8(avgFgr / fgCount),
+			G: uint8(avgFgg / fgCount),
+			B: uint8(avgFgb / fgCount),
+			A: 0xFF,
+		}
+	}
+	return result
 }

@@ -48,7 +48,7 @@ func (p *Intensity) UnmarshalText(text []byte) (err error) {
 type IntensityRenderer struct {
 	fg, bg      color.RGBA
 	intensities []Intensity
-	runes       [256]rune
+	runes       [256][]rune
 }
 
 // IntensityRendererFromChars constructs an IntensityRenderer using each char
@@ -90,8 +90,8 @@ func NewIntensityRenderer(fg, bg color.RGBA, intensities []Intensity) (*Intensit
 	first := intensities[0]
 	last := first.Brightness
 	for _, i := range intensities[1:] {
-		if last >= i.Brightness {
-			return nil, fmt.Errorf("termimg: intensity must be sorted by brightness and contain no duplicates")
+		if last > i.Brightness {
+			return nil, fmt.Errorf("termimg: intensity must be sorted by brightness")
 		}
 		last = i.Brightness
 	}
@@ -102,15 +102,16 @@ func NewIntensityRenderer(fg, bg color.RGBA, intensities []Intensity) (*Intensit
 		intensities: intensities,
 	}
 
-	r, last := first.Rune, first.Brightness
-	for _, in := range intensities[1:] {
-		for i := last; i < in.Brightness; i++ {
-			is.runes[i] = r
+	var lastInt Intensity
+	for _, curInt := range intensities {
+		for i := int(lastInt.Brightness) + 1; i < int(curInt.Brightness); i++ {
+			is.runes[i] = is.runes[lastInt.Brightness]
 		}
-		r, last = in.Rune, in.Brightness
+		is.runes[curInt.Brightness] = append(is.runes[curInt.Brightness], curInt.Rune)
+		lastInt = curInt
 	}
-	for i := int(last); i < 256; i++ {
-		is.runes[i] = r
+	for i := int(lastInt.Brightness) + 1; i < 256; i++ {
+		is.runes[i] = is.runes[lastInt.Brightness]
 	}
 
 	return is, nil
@@ -136,6 +137,11 @@ func (intr *IntensityRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0
 
 	result.FgColor = intr.fg
 	result.BgColor = intr.bg
-	result.Code = intr.runes[sumV>>5]
+
+	idx := sumV >> 5
+	sz := len(intr.runes[idx])
+
+	cyc := (y0/8)*(img.Stride/4) + (x0 / 4)
+	result.Code = intr.runes[idx][cyc%sz]
 	return result
 }

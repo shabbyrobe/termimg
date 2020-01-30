@@ -7,29 +7,61 @@ var (
 	DefaultBitmapRenderer    CellRenderer = BitmapBlock
 	DefaultIntensityRenderer CellRenderer
 
-	IntensityChar   CellRenderer
-	BitmapBlock     CellRenderer = blockRenderer
-	BitmapHalfBlock CellRenderer = halfBlockRenderer
+	IntensityChar CellRenderer
+	SimpleChar    CellRenderer = NewSimpleRenderer('X')
+	SimpleBlock   CellRenderer = NewSimpleRenderer('█')
+	BitmapBlock   CellRenderer = blockRenderer
+	HalfBlock     CellRenderer = &HalfBlockRenderer{}
 )
 
 func init() {
 	var err error
 
-	IntensityChar, err = IntensityRendererFromChars(
+	IntensityChar, err = NewIntensityRenderer(
 		color.RGBA{0xff, 0xff, 0xff, 0xff},
 		color.RGBA{0x00, 0x00, 0x00, 0x00},
-		" ·-:;+=xwd8X#W",
+
+		[]Intensity{
+			{Brightness: 0x00, Rune: ' '},
+			{Brightness: 0x18, Rune: '.'},
+			{Brightness: 0x28, Rune: ','},
+			{Brightness: 0x30, Rune: ':'},
+			{Brightness: 0x3c, Rune: '"'},
+			{Brightness: 0x40, Rune: ';'},
+			{Brightness: 0x64, Rune: '/'},
+			{Brightness: 0x6c, Rune: '<'},
+			{Brightness: 0x74, Rune: 'l'},
+			{Brightness: 0x78, Rune: 'c'},
+			{Brightness: 0x7c, Rune: 'i'},
+			{Brightness: 0x80, Rune: 'v'},
+			{Brightness: 0x83, Rune: 'j'},
+			{Brightness: 0x87, Rune: 'f'},
+			{Brightness: 0x8b, Rune: 's'},
+			{Brightness: 0x8f, Rune: 'J'},
+			{Brightness: 0x97, Rune: 'C'},
+			{Brightness: 0x9f, Rune: 'y'},
+			{Brightness: 0xa3, Rune: 'I'},
+			{Brightness: 0xab, Rune: 'V'},
+			{Brightness: 0xaf, Rune: 'k'},
+			{Brightness: 0xb7, Rune: 'X'},
+			{Brightness: 0xc3, Rune: 'P'},
+			{Brightness: 0xc7, Rune: 'G'},
+			{Brightness: 0xcb, Rune: 'U'},
+			{Brightness: 0xd3, Rune: 'K'},
+			{Brightness: 0xd7, Rune: 'O'},
+			{Brightness: 0xdb, Rune: 'H'},
+			{Brightness: 0xdf, Rune: 'D'},
+			{Brightness: 0xe7, Rune: 'R'},
+			{Brightness: 0xf7, Rune: 'W'},
+			{Brightness: 0xfb, Rune: 'N'},
+			{Brightness: 0xff, Rune: 'M'},
+		},
 	)
 	if err != nil {
 		panic(err)
 	}
 
 	DefaultIntensityRenderer = IntensityChar
-}
-
-var halfBlockRenderer = &BitmapRenderer{
-	Default: Bitmap{lowerHalfBitmap, '▄'},
-	Bitmaps: []Bitmap{{lowerHalfBitmap, '▄'}},
 }
 
 // blockRenderer is exported indirectly so it doesn't pollute the godoc

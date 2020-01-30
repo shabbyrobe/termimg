@@ -10,8 +10,8 @@ type SimpleRenderer struct {
 	Code rune
 }
 
-func NewSimpleRenderer(code rune) (*SimpleRenderer, error) {
-	return &SimpleRenderer{Code: code}, nil
+func NewSimpleRenderer(code rune) *SimpleRenderer {
+	return &SimpleRenderer{Code: code}
 }
 
 func (simp *SimpleRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int) (result Cell) {

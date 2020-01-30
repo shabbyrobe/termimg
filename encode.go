@@ -20,9 +20,6 @@ const (
 	// of the buffer:
 	NoAlloc
 
-	// Use the '▄' character only, don't do any fancy bitmap stuff:
-	HalfBlockOnly
-
 	// Do not compress runs of colors in the EscapeData output; every character
 	// will have its color emitted.
 	NoReduce
@@ -48,7 +45,7 @@ func Encode(into *EscapeData, img image.Image, flags Flag, cr CellRenderer) erro
 	if cr == nil {
 		cr = DefaultRenderer
 	}
-	var rend = imageRenderer{cellRenderer: cr}
+	var rend = imageRenderer{cellRenderer: cr} // FIXME: alloc
 	return rend.renderEscapes(into, img, flags)
 }
 
@@ -68,6 +65,6 @@ func EncodeCells(into *CellData, img image.Image, flags Flag, cr CellRenderer) e
 	if cr == nil {
 		cr = DefaultRenderer
 	}
-	var rend = imageRenderer{cellRenderer: cr}
+	var rend = imageRenderer{cellRenderer: cr} // FIXME: alloc
 	return rend.renderCells(into, img, flags)
 }
