@@ -21,11 +21,6 @@ type imageRenderer struct {
 	colorsCount [32]uint64
 }
 
-func newImageRenderer(cr CellRenderer) *imageRenderer {
-	rend := &imageRenderer{cellRenderer: cr}
-	return rend
-}
-
 func (rend *imageRenderer) renderCells(into *CellData, rimg image.Image, flags Flag) error {
 	if into == nil {
 		*into = CellData{}
@@ -64,10 +59,6 @@ func (rend *imageRenderer) renderCells(into *CellData, rimg image.Image, flags F
 }
 
 func (rend *imageRenderer) renderEscapes(into *EscapeData, rimg image.Image, flags Flag) error {
-	// Find the color channel (R, G or B) that has the biggest range of values for the current cell
-	// Split this range in the middle and create a corresponding bitmap for the cell
-	// Compare the bitmap to the assumed bitmaps for various unicode block graphics characters
-	// Re-calculate the foreground and background colors for the chosen character.
 	if into == nil {
 		*into = EscapeData{}
 	}
@@ -76,6 +67,7 @@ func (rend *imageRenderer) renderEscapes(into *EscapeData, rimg image.Image, fla
 
 	size := img.Bounds().Size()
 	w, h := size.X, size.Y
+
 	max := into.MaxSize(flags, w, h)
 
 	into.Reset()

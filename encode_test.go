@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/shabbyrobe/imgx/rgba"
 	"github.com/shabbyrobe/imgx/testimg"
 )
 
@@ -15,7 +16,7 @@ func BenchmarkTextImageRender(b *testing.B) {
 
 	var cells = CellDataFromPixels(512, 512)
 
-	img := testimg.RandBlocks{W: 512, H: 512, BlockW: 1, BlockH: 1}.RGBA(r)
+	img, _ := rgba.Convert(testimg.RandBlocks{W: 512, H: 512, BlockW: 1, BlockH: 1}.RGBA(r))
 	b.Run("rgb-1x1", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			if err := Encode(&data, img, NoAlloc, nil); err != nil {
@@ -32,7 +33,7 @@ func BenchmarkTextImageRender(b *testing.B) {
 		}
 	})
 
-	img = testimg.RandBlocks{W: 512, H: 512, BlockW: 10, BlockH: 10}.RGBA(r)
+	img, _ = rgba.Convert(testimg.RandBlocks{W: 512, H: 512, BlockW: 10, BlockH: 10}.RGBA(r))
 	b.Run("rgb-10x10", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			if err := Encode(&data, img, NoAlloc, nil); err != nil {
@@ -41,7 +42,7 @@ func BenchmarkTextImageRender(b *testing.B) {
 		}
 	})
 
-	img = testimg.RandBlocks{W: 512, H: 512, BlockW: 1, BlockH: 1}.RGBA(r)
+	img, _ = rgba.Convert(testimg.RandBlocks{W: 512, H: 512, BlockW: 1, BlockH: 1}.RGBA(r))
 	b.Run("256-1x1", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			if err := Encode(&data, img, NoAlloc|Color256, nil); err != nil {
@@ -50,7 +51,7 @@ func BenchmarkTextImageRender(b *testing.B) {
 		}
 	})
 
-	img = testimg.RandBlocks{W: 512, H: 512, BlockW: 10, BlockH: 10}.RGBA(r)
+	img, _ = rgba.Convert(testimg.RandBlocks{W: 512, H: 512, BlockW: 10, BlockH: 10}.RGBA(r))
 	b.Run("256-10x10", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			if err := Encode(&data, img, NoAlloc|Color256, nil); err != nil {

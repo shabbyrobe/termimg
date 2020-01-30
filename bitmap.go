@@ -107,6 +107,10 @@ func (bit *BitmapRenderer) cellForCode(rend *imageRenderer, img *rgba.Image, x0,
 
 // Find the best character and colors for a 4x8 part of the image at the given position
 func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int) (result Cell) {
+	// Find the color channel (R, G or B) that has the biggest range of values for the current cell
+	// Split this range in the middle and create a corresponding bitmap for the cell
+	// Compare the bitmap to the assumed bitmaps for various unicode block graphics characters
+	// Re-calculate the foreground and background colors for the chosen character.
 
 	// Determine the minimum and maximum value for each color channel:
 	var minr, ming, minb uint32 = 0xFF, 0xFF, 0xFF

@@ -48,7 +48,8 @@ func Encode(into *EscapeData, img image.Image, flags Flag, cr CellRenderer) erro
 	if cr == nil {
 		cr = DefaultRenderer
 	}
-	return newImageRenderer(cr).renderEscapes(into, img, flags)
+	var rend = imageRenderer{cellRenderer: cr}
+	return rend.renderEscapes(into, img, flags)
 }
 
 // Encode img into a CellData as a series of RGBA colors and UTF-8 runes, suitable for
@@ -67,5 +68,6 @@ func EncodeCells(into *CellData, img image.Image, flags Flag, cr CellRenderer) e
 	if cr == nil {
 		cr = DefaultRenderer
 	}
-	return newImageRenderer(cr).renderCells(into, img, flags)
+	var rend = imageRenderer{cellRenderer: cr}
+	return rend.renderCells(into, img, flags)
 }

@@ -14,6 +14,10 @@ import (
 type EscapeData struct {
 	bits []byte
 
+	// Scratch area used to calculate the max pixel size. One pixel better not be bigger
+	// than this otherwise BOOM!
+	max [128]byte
+
 	// If you add any more state to EscapeData, don't forget to add it to Reset():
 	n          int
 	firstOfRow bool
@@ -84,8 +88,6 @@ func (t *EscapeData) put(flags Flag, cell Cell) {
 }
 
 func (t *EscapeData) maxPixelSize(flags Flag) int {
-	var x EscapeData
-	var b [128]byte // better not be bigger than this!
 	var c Cell
 
 	// XXX: hack here, when these were all 0xFF, 256 color mode seemed to produce shorter
@@ -95,9 +97,17 @@ func (t *EscapeData) maxPixelSize(flags Flag) int {
 	c.BgColor = color.RGBA{0xee, 0xdd, 0xcc, 0xff}
 
 	c.Code = 0x10fffe // 4-byte utf-8
-	x.SetBuffer(b[:])
-	x.put(flags|NoReduce, c)
-	return x.n
+
+	// XXX: this is very hacky. we used to try to make a stack allocated
+	// array and a separate EscapeData instance, but it would escape to
+	// the heap and cause an alloc.
+	bits, n := t.bits, t.n
+	t.n = 0
+	t.SetBuffer(t.max[:])
+	t.put(flags|NoReduce, c)
+	sz := t.n
+	t.bits, t.n = bits, n
+	return sz
 }
 
 func (t *EscapeData) maxRowSize(flags Flag, w int) int {
