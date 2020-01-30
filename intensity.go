@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"image/color"
 	"math"
+	"strconv"
+	"strings"
 
 	"github.com/shabbyrobe/imgx/rgba"
 )
@@ -13,12 +15,54 @@ type Intensity struct {
 	Rune       rune
 }
 
+func (p Intensity) String() string {
+	bin := fmt.Sprintf("0x%02x", p.Brightness)
+	return fmt.Sprintf("%s:%s", bin, string(p.Rune))
+}
+
+func (p Intensity) MarshalText() ([]byte, error) {
+	return []byte(p.String()), nil
+}
+
+func (p *Intensity) UnmarshalText(text []byte) (err error) {
+	parts := strings.SplitN(string(text), ":", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("termimg: invalid intensity %q, expected format <intesity>:<rune>", string(text))
+	}
+
+	v, err := strconv.ParseUint(parts[0], 0, 8)
+	if err != nil {
+		return err
+	}
+
+	p.Brightness = uint8(v)
+
+	p.Rune, err = parseRune(parts[1])
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
 type IntensityRenderer struct {
+	fg, bg      color.RGBA
 	intensities []Intensity
 	runes       [256]rune
 }
 
-func IntensityRendererFromChars(chars string) (*IntensityRenderer, error) {
+// IntensityRendererFromChars constructs an IntensityRenderer using each char
+// in chars as a step from 0 to 255. Intensity is calculated the same way as
+// the 'V' or 'B' in 'HSV/B'.
+//
+// Some strings that have also worked (leading space is intentional):
+//   " .·-:;+=xtm$X&@#M"
+//   " ·-+xwXM"
+//
+// This is font-dependent though; it's worth exploring your own charset using
+// a black and white gradient like this one: http://www.lagom.nl/lcd-test/gradient.php
+//
+func IntensityRendererFromChars(fg, bg color.RGBA, chars string) (*IntensityRenderer, error) {
 	if len(chars) == 0 {
 		return nil, fmt.Errorf("termimg: no intensities")
 	}
@@ -32,10 +76,10 @@ func IntensityRendererFromChars(chars string) (*IntensityRenderer, error) {
 		is = append(is, Intensity{Brightness: uint8(math.Round(cur)), Rune: c})
 		cur += per
 	}
-	return NewIntensityRenderer(is)
+	return NewIntensityRenderer(fg, bg, is)
 }
 
-func NewIntensityRenderer(intensities []Intensity) (*IntensityRenderer, error) {
+func NewIntensityRenderer(fg, bg color.RGBA, intensities []Intensity) (*IntensityRenderer, error) {
 	if len(intensities) == 0 {
 		return nil, fmt.Errorf("termimg: no intensities")
 	}
@@ -53,6 +97,8 @@ func NewIntensityRenderer(intensities []Intensity) (*IntensityRenderer, error) {
 	}
 
 	is := &IntensityRenderer{
+		fg:          fg,
+		bg:          bg,
 		intensities: intensities,
 	}
 
@@ -71,33 +117,25 @@ func NewIntensityRenderer(intensities []Intensity) (*IntensityRenderer, error) {
 }
 
 func (intr *IntensityRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int) (result Cell) {
-	var sumR, sumG, sumB, sumV uint
+	var sumV int32
 
 	yN, xN, yOff := y0+8, x0+4, y0*img.Stride
 
 	for y := y0; y < yN; y++ {
 		for x := x0; x < xN; x++ {
 			c := img.Vals[yOff+x]
-			sumR += uint(c.R)
-			sumG += uint(c.G)
-			sumB += uint(c.B)
-
 			max := c.R
 			if c.G > max {
 				max = c.G
 			} else if c.B > max {
 				max = c.B
 			}
-			sumV += uint(max)
+			sumV += int32(max)
 		}
 	}
 
-	result.FgColor = color.RGBA{
-		R: uint8(sumR >> 5),
-		G: uint8(sumG >> 5),
-		B: uint8(sumB >> 5),
-		A: 0xff,
-	}
-	result.Code = intr.runes[uint8(sumV>>5)]
+	result.FgColor = intr.fg
+	result.BgColor = intr.bg
+	result.Code = intr.runes[sumV>>5]
 	return result
 }

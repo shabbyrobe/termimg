@@ -1,20 +1,30 @@
 package termimg
 
-var (
-	DefaultRenderer          CellRenderer = BlockRenderer
-	DefaultBitmapRenderer    CellRenderer = BlockRenderer
-	DefaultIntensityRenderer CellRenderer // init()
+import "image/color"
 
-	BlockRenderer     CellRenderer = blockRenderer
-	HalfBlockRenderer CellRenderer = halfBlockRenderer
+var (
+	DefaultRenderer          CellRenderer = BitmapBlock
+	DefaultBitmapRenderer    CellRenderer = BitmapBlock
+	DefaultIntensityRenderer CellRenderer
+
+	IntensityChar   CellRenderer
+	BitmapBlock     CellRenderer = blockRenderer
+	BitmapHalfBlock CellRenderer = halfBlockRenderer
 )
 
 func init() {
 	var err error
-	DefaultIntensityRenderer, err = IntensityRendererFromChars(" .:;+=xX$&#")
+
+	IntensityChar, err = IntensityRendererFromChars(
+		color.RGBA{0xff, 0xff, 0xff, 0xff},
+		color.RGBA{0x00, 0x00, 0x00, 0x00},
+		" ·-:;+=xwd8X#W",
+	)
 	if err != nil {
 		panic(err)
 	}
+
+	DefaultIntensityRenderer = IntensityChar
 }
 
 var halfBlockRenderer = &BitmapRenderer{

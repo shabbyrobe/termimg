@@ -4,44 +4,43 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
-func firstRune(s string) (r rune, n int, err error) {
-	for n, r = range s {
-		return r, n + 1, nil
+func parseRune(s string) (r rune, err error) {
+	r, sz := utf8.DecodeRuneInString(s)
+	if r == utf8.RuneError {
+		return r, fmt.Errorf("termimg: rune error in string %q", s)
 	}
-	return 0, 0, fmt.Errorf("termimg: rune not found")
+	if sz != len(s) {
+		nv, err := strconv.ParseInt(s, 0, 32)
+		if err != nil {
+			return r, fmt.Errorf("termimg: rune must be either a single UTF-8 character, or a Go-compatible number literal (0x, 0o, 0b supported), found %q", s)
+		}
+		r = rune(nv)
+	}
+	return r, nil
 }
 
 func parseBitmap(s string) (p Bitmap, err error) {
-	s = strings.TrimSpace(s)
-	s = strings.Replace(s, " ", "", -1)
+	const runeField, bitmapField = 1, 0
 
 	fields := strings.SplitN(s, ":", 2)
 	if len(fields) != 2 {
-		return p, fmt.Errorf("termimg: expected format '<rune>:<bitmap>'")
+		return p, fmt.Errorf("termimg: expected format '<bitmap>:<rune>'")
 	}
 
-	switch len(fields[0]) {
-	case 0:
-		return p, fmt.Errorf("termimg: expected format '<rune>:<bitmap>'")
-	case 1:
-		r, n, err := firstRune(fields[0])
-		if err != nil {
-			return p, err
-		} else if n != len(fields[0]) {
-			return p, fmt.Errorf("termimg: invalid bitmap %q: unexpected text after rune: format should be '<rune>:<bitmap>'", s)
-		}
-		p.Rune = r
-	default:
-		r, err := strconv.ParseInt(fields[0], 0, 0)
-		if err != nil {
-			return p, fmt.Errorf("termimg: invalid bitmap %q: could not parse rune as number; should be decimal or start with 0x, 0o or 0b: %w", s, err)
-		}
-		p.Rune = rune(r)
+	if fields[runeField] == "" {
+		return p, fmt.Errorf("termimg: expected format '<bitmap>:<rune>'")
 	}
 
-	bmpstr := fields[1]
+	p.Rune, err = parseRune(fields[runeField])
+	if err != nil {
+		return p, err
+	}
+
+	bmpstr := fields[bitmapField]
+	bmpstr = strings.TrimSpace(bmpstr)
 	bmpstr = strings.Replace(bmpstr, "_", "", -1)
 	bmpstr = strings.Replace(bmpstr, ".", "0", -1)
 	bmpstr = strings.TrimPrefix(bmpstr, "0b")
@@ -53,7 +52,7 @@ func parseBitmap(s string) (p Bitmap, err error) {
 	}
 
 	if bmp < 0 || bmp >= 1<<32 {
-		return p, fmt.Errorf("termimg: bitmap must be between 0 and (1<<31)-1; found %q", fields[1])
+		return p, fmt.Errorf("termimg: bitmap must be between 0 and (1<<31)-1; found %q", fields[bitmapField])
 	}
 
 	p.Bits = uint32(bmp)
