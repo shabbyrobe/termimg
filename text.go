@@ -55,7 +55,7 @@ func parseBitmap(s string) (p Bitmap, err error) {
 		return p, fmt.Errorf("termimg: bitmap must be between 0 and (1<<31)-1; found %q", fields[bitmapField])
 	}
 
-	p.Bits = uint32(bmp)
+	p.Bits = Bits(bmp)
 
 	return p, nil
 }

@@ -353,7 +353,7 @@ type decodeImageTarget struct {
 func (tgt *decodeImageTarget) set(col, row int, fg, bg color.RGBA, bits *Bitmap) {
 	x, y := col*cellW, row*cellH
 
-	n := uint32(1 << 31)
+	n := Bits(1 << 31)
 	for cellY := 0; cellY < 8; cellY++ {
 		yoff := (y + cellY) * tgt.img.Stride
 		for cellX := 0; cellX < 4; cellX++ {

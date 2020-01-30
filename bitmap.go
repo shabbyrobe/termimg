@@ -15,8 +15,14 @@ const (
 	lowerHalfBitmap = 0b_0000_0000_0000_0000_1111_1111_1111_1111
 )
 
+type Bits uint32
+
+func (b Bits) Ones() int {
+	return bits.OnesCount32(uint32(b))
+}
+
 type Bitmap struct {
-	Bits uint32
+	Bits Bits
 	Rune rune
 }
 
@@ -45,13 +51,13 @@ type BitmapRenderer struct {
 }
 
 // Return a Cell with the given code point and corresponding average fg and bg colors.
-func (bit *BitmapRenderer) cellForCode(rend *imageRenderer, img *rgba.Image, x0, y0 int, code rune, pattern uint32) (result Cell) {
+func (bit *BitmapRenderer) cellForCode(rend *imageRenderer, img *rgba.Image, x0, y0 int, code rune, pattern Bits) (result Cell) {
 	result.Code = code
 
 	var (
 		fgCount = uint16(0)
 		bgCount = uint16(0)
-		mask    = uint32(0b_1000_0000_0000_0000_0000_0000_0000_0000)
+		mask    = Bits(0b_1000_0000_0000_0000_0000_0000_0000_0000)
 
 		avgBgr, avgBgg, avgBgb uint16
 		avgFgr, avgFgg, avgFgb uint16
@@ -189,7 +195,7 @@ func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int
 		maxCountColor2 = ^uint32(max2)
 	}
 
-	var setBits uint32 = 0 // Important - keep as uint32
+	var setBits Bits
 
 	// If the sum of the number of pixels containing max1 and max2 is more than half
 	// the number of pixels, use 'direct' mode:
@@ -285,14 +291,14 @@ func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int
 
 	for _, bitmap := range bit.Bitmaps {
 		pbits := bitmap.Bits
-		diff := bits.OnesCount32(pbits ^ setBits)
+		diff := (pbits ^ setBits).Ones()
 		if diff < bestDiff {
 			best, bestDiff, inverted = bitmap, diff, false
 		}
 
 		// Invert the pattern and try again:
 		pbits = ^pbits
-		diff = bits.OnesCount32(pbits ^ setBits)
+		diff = (pbits ^ setBits).Ones()
 		if diff < bestDiff {
 			best, bestDiff, inverted = bitmap, diff, true
 		}
