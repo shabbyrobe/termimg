@@ -112,7 +112,9 @@ func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int
 	var minr, ming, minb uint32 = 0xFF, 0xFF, 0xFF
 	var maxr, maxg, maxb uint32 = 0, 0, 0
 
-	rend.colorsSize = 0
+	// Number of distinct colours we have found in this cell, used to
+	// determine the end of the rend.colorsCount cache:
+	var colorsSize int
 
 	yN, xN, yOff := y0+8, x0+4, y0*img.Stride
 
@@ -154,7 +156,7 @@ func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int
 			// based on the output:
 			colorInv := ^color
 
-			for i := 0; i < rend.colorsSize; i++ {
+			for i := 0; i < colorsSize; i++ {
 				if uint32(rend.colorsCount[i]) == colorInv {
 					// Increment the count, which is stored in the high 32-bits:
 					rend.colorsCount[i] += 0x1_0000_0000
@@ -162,8 +164,8 @@ func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int
 				}
 			}
 
-			rend.colorsCount[rend.colorsSize] = 0x1_0000_0000 | uint64(colorInv)
-			rend.colorsSize++
+			rend.colorsCount[colorsSize] = 0x1_0000_0000 | uint64(colorInv)
+			colorsSize++
 		next:
 		}
 
@@ -174,14 +176,14 @@ func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int
 	var maxCountColor1 uint32
 	var maxCountColor2 uint32
 
-	if rend.colorsSize == 1 {
+	if colorsSize == 1 {
 		count2 = uint32(rend.colorsCount[0] >> 32)
 		maxCountColor1 = ^uint32(rend.colorsCount[0])
 		maxCountColor2 = maxCountColor1
 
 	} else {
 		var max1, max2 uint64
-		for i := 0; i < rend.colorsSize; i++ {
+		for i := 0; i < colorsSize; i++ {
 			rc := rend.colorsCount[i]
 			if rc > max1 {
 				max1, max2 = rc, max1

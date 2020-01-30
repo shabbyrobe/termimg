@@ -19,7 +19,6 @@ type imageRenderer struct {
 	// Add (1<<32) to add 1 to the count. This layout is used to allow sorting.
 	// Color is inverted so that it sorts in the opposite order.
 	colorsCount [32]uint64
-	colorsSize  int
 }
 
 func newImageRenderer(cr CellRenderer) *imageRenderer {
