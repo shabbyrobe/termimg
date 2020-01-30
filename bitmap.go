@@ -26,7 +26,7 @@ func (p Bitmap) String() string {
 	for i := 4; i < 32; i += 4 {
 		out += "_" + bin[i:i+4]
 	}
-	return fmt.Sprintf("%s:%s", string(p.Rune), out)
+	return fmt.Sprintf("%s:%s", out, string(p.Rune))
 }
 
 func (p Bitmap) MarshalText() ([]byte, error) {
