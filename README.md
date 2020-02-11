@@ -46,6 +46,10 @@ if err := Encode(&data, img, 0, nil); err != nil {
     // ...
 }
 os.Stdout.Write(data.Value())
+
+// Clean up afterwards:
+os.Stdout.Write([]byte("\033[0m"))
+os.Stdout.Write([]byte("\n"))
 ```
 
 To render into a `CellData` into a `tcell.Screen`:

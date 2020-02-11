@@ -38,6 +38,13 @@ type CellRenderer interface {
 //		// ...
 //	}
 //
+// EscapeData.Value() can be written directly to stdout, but take care to clean up
+// afterwards:
+//
+//	os.Stdout.Write(into.Value())
+//	os.Stdout.Write([]byte("\033[0m"))
+// 	os.Stdout.Write([]byte("\n"))
+//
 // EscapeData can be reused to help control allocations. It will be grown if necessary,
 // but never shrunk. To raise an error if an allocation would occur, pass FlagNoAlloc.
 //
