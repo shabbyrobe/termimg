@@ -1,6 +1,8 @@
 package termimg
 
-import "image/color"
+import (
+	"image/color"
+)
 
 var (
 	DefaultRenderer          CellRenderer = BitmapBlock
@@ -12,6 +14,10 @@ var (
 	SimpleBlock   CellRenderer = NewSimpleRenderer('█')
 	BitmapBlock   CellRenderer = blockRenderer
 	HalfBlock     CellRenderer = &HalfBlockRenderer{}
+
+	// XXX: This will change at some point; it doesn't work well without
+	// the ability to disable the background color.
+	BrailleBitmap CellRenderer
 )
 
 func init() {
@@ -174,4 +180,75 @@ var blockRenderer = &BitmapRenderer{
 		// {0x000fec80, 0x25e4},
 		// {0x000f7310, 0x25e5},
 	},
+}
+
+func init() {
+	// Braille dots have a weird numbering scheme:
+	//
+	//     ╭───────▶ 1  ■ ·  4 ◄─────╮
+	//     │ ╭─────▶ 2  · ■  5 ◄───╮ │
+	//     │ │ ╭───▶ 3  ■ ■  6 ◄─╮ │ │
+	//     │ │ │     7  ■ ·  8   │ │ │
+	//     │ │ │        ▲ ▲      │ │ │
+	//     │ │ │        │ │      6 5 4
+	//     │ │ │  ╭─────│─╯      │ │ │
+	//     │ │ │  │ ╭───╯        │ │ │
+	//     │ │ │  │ │ ╭──────────╯ │ │
+	//     1 2 3  │ │ │ ╭──────────╯ │
+	//     │ │ │  │ │ │ │ ╭──────────╯
+	//     │ │ │  │ │ │ │ │
+	//     │ │ │  ▼ ▼ ▼ ▼ ▼
+	//     │ │ │  8 7 6 5 4 3 2 1  ==  braille dot number
+	//     │ │ │  0 1 1 1 0 1 0 1  ==  bit value
+	//     │ │ │            ▲ ▲ ▲
+	//     │ │ │            │ │ │
+	//     │ │ ╰─────3──────╯ │ │
+	//     │ ╰───────2────────╯ │
+	//     ╰─────────1──────────╯
+	//
+	// Add the bit value to U+2800 to get the corresponding character.
+
+	var bitmaps = make([]Bitmap, 0, 257)
+
+	bitmaps = append(bitmaps, Bitmap{0, 0x00a0}) // NO_BREAK_SPACE
+
+	for i := 0; i < 256; i++ {
+		var bmp Bits
+
+		if i&0b_0000_0001 != 0 { // 0, 0 == #1
+			bmp |= 0b_1100_1100_0000_0000_0000_0000_0000_0000
+		}
+		if i&0b_0000_1000 != 0 { // 1, 0 == #4
+			bmp |= 0b_0011_0011_0000_0000_0000_0000_0000_0000
+		}
+		if i&0b_0000_0010 != 0 { // 0, 1 == #2
+			bmp |= 0b_0000_0000_1100_1100_0000_0000_0000_0000
+		}
+		if i&0b_0001_0000 != 0 { // 1, 1 == #5
+			bmp |= 0b_0000_0000_0011_0011_0000_0000_0000_0000
+		}
+		if i&0b_0000_0100 != 0 { // 0, 2 == #3
+			bmp |= 0b_0000_0000_0000_0000_1100_1100_0000_0000
+		}
+		if i&0b_0010_0000 != 0 { // 1, 2 == #6
+			bmp |= 0b_0000_0000_0000_0000_0011_0011_0000_0000
+		}
+		if i&0b_0100_0000 != 0 { // 0, 3 == #7
+			bmp |= 0b_0000_00000000_0000_0000_0000_1100_1100
+		}
+		if i&0b_1000_0000 != 0 { // 1, 3 == #8
+			bmp |= 0b_0000_00000000_0000_0000_0000_0011_0011
+		}
+
+		bitmaps = append(bitmaps, Bitmap{
+			Bits: bmp,
+			Rune: rune(0x2800) + rune(i),
+		})
+	}
+
+	// FIXME: this can be converted to its own renderer.
+	BrailleBitmap = &BitmapRenderer{
+		Default: Bitmap{lowerHalfBitmap, 0x28E4},
+		Bitmaps: bitmaps,
+	}
 }
