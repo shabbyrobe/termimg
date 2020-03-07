@@ -54,7 +54,7 @@ func DecodeImage(rdr io.Reader, bit *BitmapRenderer, size *image.Point) (img *rg
 //
 func DecodeImageBytes(data []byte, bit *BitmapRenderer, size *image.Point) (img *rgba.Image, err error) {
 	if bit == nil {
-		bit = blockRenderer
+		bit = decoderDefaultRenderer
 	}
 
 	var cols, rows int
@@ -109,7 +109,7 @@ func DecodeCells(rdr io.Reader, bit *BitmapRenderer) (cells CellData, err error)
 //
 func DecodeCellsBytes(data []byte, bit *BitmapRenderer) (cells CellData, err error) {
 	if bit == nil {
-		bit = blockRenderer
+		bit = decoderDefaultRenderer
 	}
 	cols, rows := decodeSize(data)
 
@@ -302,14 +302,14 @@ func (dec *decoder) decode() error {
 			}
 
 			var found *Bitmap
-			for _, b := range dec.bit.Bitmaps {
+			for _, b := range dec.bit.bitmaps {
 				if rn == b.Rune {
 					found = &b
 					break
 				}
 			}
-			if found == nil && rn == dec.bit.Default.Rune {
-				found = &dec.bit.Default
+			if found == nil && rn == dec.bit.defaultBitmap.Rune {
+				found = &dec.bit.defaultBitmap
 			}
 			if found == nil {
 				return fmt.Errorf("termimg: decode found rune %q byte %d, but this rune does not exist in the pattern set", string(rn), dec.i)
@@ -427,7 +427,10 @@ func decodeSize(data []byte) (cols, rows int) {
 	return cols, rows
 }
 
-var colorStringLookup = make(map[string]uint8)
+var (
+	decoderDefaultRenderer, _ = NewBitmapRenderer(PresetBitmapBlock())
+	colorStringLookup         = make(map[string]uint8)
+)
 
 func init() {
 	for i := 0; i < 256; i++ {

@@ -36,15 +36,24 @@ Secondly, depending on your use-case, you need to decide if you want to use
 values, and the output character as a rune. This may be desirable if you are using something
 like https://github.com/gdamore/tcell
 
+Thirdly, you need to decide which renderer you want to use. There are several:
+
+- BitmapRenderer: the full color, "hi-res" TerminalImageViewer algorithm.
+- IntensityRenderer: black and white renderer using different characters for intensity
+- HalfBlockRenderer: color renderer using a unicode half-block. Requires background color.
+- SimpleRenderer: color renderer using a single character. Doesn't require background color.
+
+There are several presets available using the `Preset*()` functions. These examples will
+use `PresetBitmapBlock()`, which uses the TerminalImageViewer algorithm and its pattern set.
+
 To render an `image.Image` into an `EscapeData`, then print to stdout:
 
 ```go
 var img image.Image // presuming you already have one of these...
 
-var data EscapeData
-if err := Encode(&data, img, 0, nil); err != nil {
-    // ...
-}
+var data termimg.EscapeData
+var renderer, _ = termimg.PresetBitmapBlock().Renderer()
+err := renderer.Escapes(&data, img, 0)
 os.Stdout.Write(data.Value())
 
 // Clean up afterwards:
@@ -62,10 +71,9 @@ err := screen.Init()
 screen.Clear()
 defer screen.Fini()
 
-var cells CellData
-if err := EncodeCells(&cells, img, 0, nil); err != nil {
-    // ...
-}
+var cells termimg.CellData
+var renderer, _ = termimg.PresetBitmapBlock().Renderer()
+err := renderer.Cells(&cells, img, 0)
 
 for x := 0; x < cells.Cols; x++ {
     for y := 0; y < cells.Rows; y++ {

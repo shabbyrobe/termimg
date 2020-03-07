@@ -2,6 +2,7 @@ package termimg
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"math"
 	"strconv"
@@ -43,6 +44,24 @@ func (p *Intensity) UnmarshalText(text []byte) (err error) {
 	}
 
 	return err
+}
+
+type IntensityConfig struct {
+	Chars       string
+	Intensities []Intensity
+	Fg          color.RGBA
+	Bg          color.RGBA
+}
+
+func (ic IntensityConfig) Renderer() (Renderer, error) {
+	if ic.Chars != "" && len(ic.Intensities) > 0 {
+		return nil, fmt.Errorf("termview: cannot specify Chars and Intensities together")
+	}
+	if ic.Chars != "" {
+		return IntensityRendererFromChars(ic.Fg, ic.Bg, ic.Chars)
+	} else {
+		return NewIntensityRenderer(ic.Fg, ic.Bg, ic.Intensities)
+	}
 }
 
 type IntensityRenderer struct {
@@ -117,7 +136,41 @@ func NewIntensityRenderer(fg, bg color.RGBA, intensities []Intensity) (*Intensit
 	return is, nil
 }
 
-func (intr *IntensityRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int) (result Cell) {
+func (intr *IntensityRenderer) Escapes(into *EscapeData, img image.Image, flags Flag) error {
+	// XXX: intentional copy-pasta; see renderer.go for details
+
+	into, rimg, w, h := prepareEscapes(into, img, flags)
+	xEnd, yEnd := w-4, h-8
+	for y := 0; y <= yEnd; y += 8 {
+		for x := 0; x <= xEnd; x += 4 {
+			into.put(flags, intr.cell(rimg, x, y))
+		}
+
+		// Don't print the last newline, so we can avoid scrolling when rendering video:
+		if y < yEnd {
+			into.nextRow()
+		}
+	}
+
+	return nil
+}
+
+func (intr *IntensityRenderer) Cells(into *CellData, img image.Image, flags Flag) error {
+	// XXX: intentional copy-pasta; see renderer.go for details
+
+	into, rimg, w, h := prepareCells(into, img, flags)
+	n, xEnd, yEnd := 0, w-4, h-8
+	for y := 0; y <= yEnd; y += 8 {
+		for x := 0; x <= xEnd; x += 4 {
+			into.Cells[n] = intr.cell(rimg, x, y)
+			n++
+		}
+	}
+
+	return nil
+}
+
+func (intr *IntensityRenderer) cell(img *rgba.Image, x0, y0 int) (result Cell) {
 	var sumV int32
 
 	yN, xN, yOff := y0+8, x0+4, y0*img.Stride

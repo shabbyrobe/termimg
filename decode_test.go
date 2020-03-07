@@ -27,8 +27,10 @@ func TestDecodeImage(t *testing.T) {
 			// image. Then takes that image, encodes to runes again, then back to an
 			// image again, and makes sure the two images are the same.
 
+			renderer, _ := PresetBitmapBlock().Renderer()
+
 			var data EscapeData
-			if err := Encode(&data, tc.img, 0, nil); err != nil {
+			if err := renderer.Escapes(&data, tc.img, 0); err != nil {
 				panic(err)
 			}
 
@@ -38,7 +40,7 @@ func TestDecodeImage(t *testing.T) {
 			}
 
 			var back EscapeData
-			if err := Encode(&back, first, 0, nil); err != nil {
+			if err := renderer.Escapes(&back, first, 0); err != nil {
 				panic(err)
 			}
 
@@ -67,13 +69,15 @@ func TestDecodeCells(t *testing.T) {
 			// image. Then takes that image, encodes to runes again, then back to an
 			// image again, and makes sure the two images are the same.
 
+			renderer, _ := PresetBitmapBlock().Renderer()
+
 			var data EscapeData
-			if err := Encode(&data, tc.img, 0, nil); err != nil {
+			if err := renderer.Escapes(&data, tc.img, 0); err != nil {
 				panic(err)
 			}
 
 			var cells CellData
-			if err := EncodeCells(&cells, tc.img, 0, nil); err != nil {
+			if err := renderer.Cells(&cells, tc.img, 0); err != nil {
 				panic(err)
 			}
 
@@ -101,7 +105,9 @@ func BenchmarkDecode(b *testing.B) {
 
 	var data EscapeData
 	data.SetBuffer(make([]byte, 10*1024*1024)) //  Should be big enough to avoid realloc
-	if err := Encode(&data, img, NoAlloc, nil); err != nil {
+
+	renderer, _ := PresetBitmapBlock().Renderer()
+	if err := renderer.Escapes(&data, img, NoAlloc); err != nil {
 		panic(err)
 	}
 

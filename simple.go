@@ -1,10 +1,19 @@
 package termimg
 
 import (
+	"image"
 	"image/color"
 
 	"github.com/shabbyrobe/imgx/rgba"
 )
+
+type SimpleConfig struct {
+	Code rune
+}
+
+func (config SimpleConfig) Renderer() (Renderer, error) {
+	return NewSimpleRenderer(config.Code), nil
+}
 
 type SimpleRenderer struct {
 	Code rune
@@ -14,7 +23,41 @@ func NewSimpleRenderer(code rune) *SimpleRenderer {
 	return &SimpleRenderer{Code: code}
 }
 
-func (simp *SimpleRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int) (result Cell) {
+func (simp *SimpleRenderer) Escapes(into *EscapeData, img image.Image, flags Flag) error {
+	// XXX: intentional copy-pasta; see renderer.go for details
+
+	into, rimg, w, h := prepareEscapes(into, img, flags)
+	xEnd, yEnd := w-4, h-8
+	for y := 0; y <= yEnd; y += 8 {
+		for x := 0; x <= xEnd; x += 4 {
+			into.put(flags, simp.cell(rimg, x, y))
+		}
+
+		// Don't print the last newline, so we can avoid scrolling when rendering video:
+		if y < yEnd {
+			into.nextRow()
+		}
+	}
+
+	return nil
+}
+
+func (simp *SimpleRenderer) Cells(into *CellData, img image.Image, flags Flag) error {
+	// XXX: intentional copy-pasta; see renderer.go for details
+
+	into, rimg, w, h := prepareCells(into, img, flags)
+	n, xEnd, yEnd := 0, w-4, h-8
+	for y := 0; y <= yEnd; y += 8 {
+		for x := 0; x <= xEnd; x += 4 {
+			into.Cells[n] = simp.cell(rimg, x, y)
+			n++
+		}
+	}
+
+	return nil
+}
+
+func (simp *SimpleRenderer) cell(img *rgba.Image, x0, y0 int) (result Cell) {
 	var sumR, sumG, sumB uint
 
 	yN, xN, yOff := y0+8, x0+4, y0*img.Stride

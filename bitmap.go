@@ -2,14 +2,12 @@ package termimg
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"math/bits"
 
 	"github.com/shabbyrobe/imgx/rgba"
 )
-
-// At some point it could be fun to extend this to allow arbitrary sizes, not
-// just 4x8, for each bitmap, but it could be too slow to go beyond a uint64.
 
 const (
 	lowerHalfBitmap = 0b_0000_0000_0000_0000_1111_1111_1111_1111
@@ -45,13 +43,75 @@ func (p *Bitmap) UnmarshalText(text []byte) (err error) {
 	return err
 }
 
-type BitmapRenderer struct {
+type BitmapConfig struct {
 	Bitmaps []Bitmap
 	Default Bitmap
 }
 
+func (config BitmapConfig) Renderer() (Renderer, error) {
+	return NewBitmapRenderer(config)
+}
+
+// BitmapRenderer renders each cell in the terminal using runes assocated with the closest
+// matching grid of 4x8 pixels (Bitmap).
+type BitmapRenderer struct {
+	bitmaps       []Bitmap
+	defaultBitmap Bitmap
+
+	// Length 32 == 4x8 pixels per character cell.
+	//
+	// Bit layout for values:
+	// 00..31 == count
+	// 32..63 == ^color
+	//
+	// Add (1<<32) to add 1 to the count. This layout is used to allow sorting.
+	// Color is inverted so that it sorts in the opposite order.
+	colorsCount [32]uint64
+}
+
+func NewBitmapRenderer(config BitmapConfig) (*BitmapRenderer, error) {
+	return &BitmapRenderer{
+		bitmaps:       config.Bitmaps,
+		defaultBitmap: config.Default,
+	}, nil
+}
+
+func (bit *BitmapRenderer) Escapes(into *EscapeData, img image.Image, flags Flag) error {
+	// XXX: intentional copy-pasta; see renderer.go for details
+
+	into, rimg, w, h := prepareEscapes(into, img, flags)
+	xEnd, yEnd := w-4, h-8
+	for y := 0; y <= yEnd; y += 8 {
+		for x := 0; x <= xEnd; x += 4 {
+			into.put(flags, bit.cell(rimg, x, y))
+		}
+
+		// Don't print the last newline, so we can avoid scrolling when rendering video:
+		if y < yEnd {
+			into.nextRow()
+		}
+	}
+
+	return nil
+}
+
+func (bit *BitmapRenderer) Cells(into *CellData, img image.Image, flags Flag) error {
+	// XXX: intentional copy-pasta; see renderer.go for details
+
+	into, rimg, w, h := prepareCells(into, img, flags)
+	n, xEnd, yEnd := 0, w-4, h-8
+	for y := 0; y <= yEnd; y += 8 {
+		for x := 0; x <= xEnd; x += 4 {
+			into.Cells[n] = bit.cell(rimg, x, y)
+			n++
+		}
+	}
+
+	return nil
+}
+
 // Find the best character and colors for a 4x8 part of the image at the given position
-func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int) (result Cell) {
+func (bit *BitmapRenderer) cell(img *rgba.Image, x0, y0 int) (result Cell) {
 	// Find the color channel (R, G or B) that has the biggest range of values for the current cell
 	// Split this range in the middle and create a corresponding bitmap for the cell
 	// Compare the bitmap to the assumed bitmaps for various unicode block graphics characters
@@ -62,7 +122,9 @@ func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int
 	var maxr, maxg, maxb uint32 = 0, 0, 0
 
 	// Number of distinct colours we have found in this cell, used to
-	// determine the end of the rend.colorsCount cache:
+	// determine the end of the rend.colorsCount cache. Tracking the size
+	// internal to this function obviates the need to zero the memory on
+	// every call to cell().
 	var colorsSize int
 
 	yN, xN, yOff := y0+8, x0+4, y0*img.Stride
@@ -106,14 +168,14 @@ func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int
 			colorInv := ^color
 
 			for i := 0; i < colorsSize; i++ {
-				if uint32(rend.colorsCount[i]) == colorInv {
+				if uint32(bit.colorsCount[i]) == colorInv {
 					// Increment the count, which is stored in the high 32-bits:
-					rend.colorsCount[i] += 0x1_0000_0000
+					bit.colorsCount[i] += 0x1_0000_0000
 					goto next
 				}
 			}
 
-			rend.colorsCount[colorsSize] = 0x1_0000_0000 | uint64(colorInv)
+			bit.colorsCount[colorsSize] = 0x1_0000_0000 | uint64(colorInv)
 			colorsSize++
 		next:
 		}
@@ -126,14 +188,14 @@ func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int
 	var maxCountColor2 uint32
 
 	if colorsSize == 1 {
-		count2 = uint32(rend.colorsCount[0] >> 32)
-		maxCountColor1 = ^uint32(rend.colorsCount[0])
+		count2 = uint32(bit.colorsCount[0] >> 32)
+		maxCountColor1 = ^uint32(bit.colorsCount[0])
 		maxCountColor2 = maxCountColor1
 
 	} else {
 		var max1, max2 uint64
 		for i := 0; i < colorsSize; i++ {
-			rc := rend.colorsCount[i]
+			rc := bit.colorsCount[i]
 			if rc > max1 {
 				max1, max2 = rc, max1
 			} else if rc > max2 {
@@ -237,10 +299,10 @@ func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int
 	// Find the best bitmap match by counting the bits that don't match,
 	// including the inverted bitmaps.
 	var bestDiff = 8 // FIXME: why 8 and not 16? not sure, need to research.
-	var best = bit.Default
+	var best = bit.defaultBitmap
 	var inverted bool
 
-	for _, bitmap := range bit.Bitmaps {
+	for _, bitmap := range bit.bitmaps {
 		pbits := bitmap.Bits
 		diff := (pbits ^ setBits).Ones()
 		if diff < bestDiff {
@@ -276,14 +338,14 @@ func (bit *BitmapRenderer) cell(rend *imageRenderer, img *rgba.Image, x0, y0 int
 		return result
 	}
 
-	return bit.cellForCode(rend, img, x0, y0, best.Rune, best.Bits)
+	return bit.cellForCode(img, x0, y0, best.Rune, best.Bits)
 }
 
 // Return a Cell with the given code point and corresponding average fg and bg colors.
 //
 // NOTE: This is duplicated with the half-block renderer... I tried to share the code
 // by making it a global function but got a 30% slowdown. WAT?
-func (bit *BitmapRenderer) cellForCode(rend *imageRenderer, img *rgba.Image, x0, y0 int, code rune, pattern Bits) (result Cell) {
+func (bit *BitmapRenderer) cellForCode(img *rgba.Image, x0, y0 int, code rune, pattern Bits) (result Cell) {
 	result.Code = code
 
 	var (
